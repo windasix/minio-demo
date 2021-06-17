@@ -23,7 +23,6 @@ minio:
   endpoint: http://192.168.31.155:9000
   accessKey: minioadmin
   secretKey: minioadmin
-  filHost: http://file.songshijun.top
 
 logging:
   level:

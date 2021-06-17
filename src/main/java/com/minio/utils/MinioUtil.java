@@ -23,6 +23,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -75,9 +76,7 @@ public class MinioUtil {
                     .contentType(file.getContentType())
                     .build());
         String url = minioProp.getEndpoint() + "/" + bucketName + "/" + fileName;
-        String urlHost = minioProp.getFilHost() + "/" + bucketName + "/" + fileName;
-        log.info("上传文件成功url ：[{}], urlHost ：[{}]", url, urlHost);
-        return new FileUploadResponse(url, urlHost);
+        return new FileUploadResponse(url);
     }
 
 
@@ -96,62 +95,27 @@ public class MinioUtil {
         String fileName = bucketName + "_" +
             System.currentTimeMillis() + "_" + format.format(new Date()) + "_" + new Random().nextInt(1000) +
             originalFilename.substring(originalFilename.lastIndexOf("."));
-
-        // 计算文件有多少片
-//        long partSize = 5 * 1024 * 1024L;
-//        long fileLength = file.getSize();
-//        partCount = (int) (fileLength / partSize);
-//        if (fileLength % partSize != 0) {
-//            partCount++;
-//        }
-
-//        HashMultimap<String, String> headers = HashMultimap.create();
-//        headers.put("Content-Type", "application/octet-stream");
-//        customMinioClient = new CustomMinioClient(client);
-//        String uploadId = customMinioClient.initMultiPartUpload(bucketName, null, fileName, headers, null);
-//        List<String> partList = new ArrayList<>();
-//        Map<String, String> reqParams = new HashMap<>();
-        // 开始上传
-//        for (int i = 1; i <= partCount; i++) {
-//            String etag = client.putObject(
-//                PutObjectArgs.builder().bucket(bucketName).object(fileName).stream(
-//                    file.getInputStream(), file.getSize(), -1)
-//                    .contentType(file.getContentType())
-//                    .build()).etag();
-//            partList.add(etag);
-//        }
-//        client.putObject(
-//            PutObjectArgs.builder()
-//                .bucket(bucketName)
-//                .object(fileName)
-//                .stream(file.getInputStream(), file.getSize(), -1)
-//                .contentType(file.getContentType())
-//                .build()
-//        );
-
         AmazonS3 s3 = new AmazonS3Client(new BasicAWSCredentials(minioProp.getAccessKey(), minioProp.getSecretKey()));
         s3.setEndpoint(minioProp.getEndpoint());
         GeneratePresignedUrlRequest urlRequest = new GeneratePresignedUrlRequest(bucketName, fileName);
         ObjectMetadata objectMetadata = new ObjectMetadata();
         objectMetadata.setContentLength(file.getSize());
         objectMetadata.setContentType(file.getContentType());
+        DecimalFormat decimalFormat = new DecimalFormat("0.00");
         s3.putObject(new PutObjectRequest(bucketName, fileName, file.getInputStream(), objectMetadata)
             .withGeneralProgressListener(new ProgressListener(){
                 int readedbyte = 0;
                 @Override
                 public void progressChanged(ProgressEvent progressEvent) {
                     readedbyte += progressEvent.getBytesTransferred();
-                    System.out.println("=========progress=================" + (readedbyte / (float)file.getSize()));
+                    System.out.println("progress：" + decimalFormat.format (readedbyte / (float)file.getSize()));
                 }
             }));
         URL url2 = s3.generatePresignedUrl(urlRequest);
-        System.out.println("URL：" + url2.toString());
-        System.out.println("URL2：" + minioProp.getFilHost() + url2.getPath());
-
+        System.out.println("URL2：" + minioProp.getEndpoint() + url2.getPath());
         String url = minioProp.getEndpoint() + "/" + bucketName + "/" + fileName;
-        String urlHost = minioProp.getFilHost() + "/" + bucketName + "/" + fileName;
 //        log.info("上传文件成功url ：[{}], urlHost ：[{}]", url, urlHost);
-        return new FileUploadResponse(url, urlHost);
+        return new FileUploadResponse(url);
     }
 
     /**
