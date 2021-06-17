@@ -6,8 +6,8 @@ import com.amazonaws.event.ProgressListener;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
+import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.minio.config.CustomMinioClient;
 import com.minio.config.MinioProp;
 import com.minio.dto.response.FileUploadResponse;
 import io.minio.*;
@@ -38,8 +38,6 @@ public class MinioUtil {
 
     @Autowired
     private MinioClient client;
-
-    private CustomMinioClient customMinioClient;
 
     /**
      * 创建bucket
@@ -134,14 +132,16 @@ public class MinioUtil {
         AmazonS3 s3 = new AmazonS3Client(new BasicAWSCredentials(minioProp.getAccessKey(), minioProp.getSecretKey()));
         s3.setEndpoint(minioProp.getEndpoint());
         GeneratePresignedUrlRequest urlRequest = new GeneratePresignedUrlRequest(bucketName, fileName);
-        //这里我们上传文件的时候bucketName就需要替换为oss，bucketName拼到文件名的前面
-        s3.putObject(new PutObjectRequest(bucketName, fileName, file.getInputStream(), null)
+        ObjectMetadata objectMetadata = new ObjectMetadata();
+        objectMetadata.setContentLength(file.getSize());
+        objectMetadata.setContentType(file.getContentType());
+        s3.putObject(new PutObjectRequest(bucketName, fileName, file.getInputStream(), objectMetadata)
             .withGeneralProgressListener(new ProgressListener(){
                 int readedbyte = 0;
                 @Override
                 public void progressChanged(ProgressEvent progressEvent) {
                     readedbyte += progressEvent.getBytesTransferred();
-                    System.out.println("=========progress=================" + (readedbyte / (float)file.getSize()) + "============URL=============");
+                    System.out.println("=========progress=================" + (readedbyte / (float)file.getSize()));
                 }
             }));
         URL url2 = s3.generatePresignedUrl(urlRequest);
@@ -150,10 +150,7 @@ public class MinioUtil {
 
         String url = minioProp.getEndpoint() + "/" + bucketName + "/" + fileName;
         String urlHost = minioProp.getFilHost() + "/" + bucketName + "/" + fileName;
-
 //        log.info("上传文件成功url ：[{}], urlHost ：[{}]", url, urlHost);
-
-        // test
         return new FileUploadResponse(url, urlHost);
     }
 
