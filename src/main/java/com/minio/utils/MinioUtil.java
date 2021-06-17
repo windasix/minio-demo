@@ -1,5 +1,13 @@
 package com.minio.utils;
 
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.event.ProgressEvent;
+import com.amazonaws.event.ProgressListener;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
+import com.amazonaws.services.s3.model.PutObjectRequest;
+import com.minio.config.CustomMinioClient;
 import com.minio.config.MinioProp;
 import com.minio.dto.response.FileUploadResponse;
 import io.minio.*;
@@ -12,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
@@ -29,6 +38,8 @@ public class MinioUtil {
 
     @Autowired
     private MinioClient client;
+
+    private CustomMinioClient customMinioClient;
 
     /**
      * 创建bucket
@@ -59,15 +70,140 @@ public class MinioUtil {
                 originalFilename.substring(originalFilename.lastIndexOf("."));
         //开始上传
         client.putObject(
-                PutObjectArgs.builder().bucket(bucketName).object(fileName).stream(
-                        file.getInputStream(), file.getSize(), -1)
-                        .contentType(file.getContentType())
-                        .build());
+                PutObjectArgs.builder()
+                    .bucket(bucketName)
+                    .object(fileName)
+                    .stream(file.getInputStream(), file.getSize(), -1)
+                    .contentType(file.getContentType())
+                    .build());
         String url = minioProp.getEndpoint() + "/" + bucketName + "/" + fileName;
         String urlHost = minioProp.getFilHost() + "/" + bucketName + "/" + fileName;
         log.info("上传文件成功url ：[{}], urlHost ：[{}]", url, urlHost);
         return new FileUploadResponse(url, urlHost);
     }
+
+
+    public FileUploadResponse uploadLargeFile(MultipartFile file, String bucketName, Integer partCount) throws Exception {
+        //判断文件是否为空
+        if (null == file || 0 == file.getSize()) {
+            return null;
+        }
+        //判断存储桶是否存在  不存在则创建
+        createBucket(bucketName);
+        //文件名
+        String originalFilename = file.getOriginalFilename();
+        //新的文件名 = 存储桶文件名_时间戳.后缀名
+        assert originalFilename != null;
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+        String fileName = bucketName + "_" +
+            System.currentTimeMillis() + "_" + format.format(new Date()) + "_" + new Random().nextInt(1000) +
+            originalFilename.substring(originalFilename.lastIndexOf("."));
+
+        // 计算文件有多少片
+//        long partSize = 5 * 1024 * 1024L;
+//        long fileLength = file.getSize();
+//        partCount = (int) (fileLength / partSize);
+//        if (fileLength % partSize != 0) {
+//            partCount++;
+//        }
+
+//        HashMultimap<String, String> headers = HashMultimap.create();
+//        headers.put("Content-Type", "application/octet-stream");
+//        customMinioClient = new CustomMinioClient(client);
+//        String uploadId = customMinioClient.initMultiPartUpload(bucketName, null, fileName, headers, null);
+//        List<String> partList = new ArrayList<>();
+//        Map<String, String> reqParams = new HashMap<>();
+        // 开始上传
+//        for (int i = 1; i <= partCount; i++) {
+//            String etag = client.putObject(
+//                PutObjectArgs.builder().bucket(bucketName).object(fileName).stream(
+//                    file.getInputStream(), file.getSize(), -1)
+//                    .contentType(file.getContentType())
+//                    .build()).etag();
+//            partList.add(etag);
+//        }
+//        client.putObject(
+//            PutObjectArgs.builder()
+//                .bucket(bucketName)
+//                .object(fileName)
+//                .stream(file.getInputStream(), file.getSize(), -1)
+//                .contentType(file.getContentType())
+//                .build()
+//        );
+
+        AmazonS3 s3 = new AmazonS3Client(new BasicAWSCredentials(minioProp.getAccessKey(), minioProp.getSecretKey()));
+        s3.setEndpoint(minioProp.getEndpoint());
+        GeneratePresignedUrlRequest urlRequest = new GeneratePresignedUrlRequest(bucketName, fileName);
+        //这里我们上传文件的时候bucketName就需要替换为oss，bucketName拼到文件名的前面
+        s3.putObject(new PutObjectRequest(bucketName, fileName, file.getInputStream(), null)
+            .withGeneralProgressListener(new ProgressListener(){
+                int readedbyte = 0;
+                @Override
+                public void progressChanged(ProgressEvent progressEvent) {
+                    readedbyte += progressEvent.getBytesTransferred();
+                    System.out.println("=========progress=================" + (readedbyte / (float)file.getSize()) + "============URL=============");
+                }
+            }));
+        URL url2 = s3.generatePresignedUrl(urlRequest);
+        System.out.println("URL：" + url2.toString());
+        System.out.println("URL2：" + minioProp.getFilHost() + url2.getPath());
+
+        String url = minioProp.getEndpoint() + "/" + bucketName + "/" + fileName;
+        String urlHost = minioProp.getFilHost() + "/" + bucketName + "/" + fileName;
+
+//        log.info("上传文件成功url ：[{}], urlHost ：[{}]", url, urlHost);
+
+        // test
+        return new FileUploadResponse(url, urlHost);
+    }
+
+    /**
+     * 获得状态
+     */
+    public void getStatus() throws Exception {
+
+//        String sqlExpression = "select * from S3Object";
+//        InputSerialization is = new InputSerialization(null, false, null, null, FileHeaderInfo.USE, null, null, null);
+//        OutputSerialization os = new OutputSerialization(null, null, null, QuoteFields.ASNEEDED, null);
+//        SelectResponseStream stream =
+//            client.selectObjectContent(
+//                SelectObjectContentArgs.builder()
+//                    .bucket("livedingding")
+//                    .object("livedingding_1623743860781_2021-06-15_293.png")
+//                    .sqlExpression(sqlExpression)
+//                    .inputSerialization(is)
+//                    .outputSerialization(os)
+//                    .requestProgress(true)
+//                    .build());
+//
+//        byte[] buf = new byte[512];
+//        int bytesRead = stream.read(buf, 0, buf.length);
+//        System.out.println(new String(buf, 0, bytesRead, StandardCharsets.UTF_8));
+//        Stats stats = stream.stats();
+//        System.out.println("bytes scanned: " + stats.bytesScanned());
+//        System.out.println("bytes processed: " + stats.bytesProcessed());
+//        System.out.println("bytes returned: " + stats.bytesReturned());
+//        stream.close();
+
+//        AmazonS3 s3 = new AmazonS3Client(new BasicAWSCredentials(minioProp.getAccessKey(), minioProp.getSecretKey()));
+//        s3.setEndpoint(minioProp.getEndpoint());
+//        GeneratePresignedUrlRequest urlRequest = new GeneratePresignedUrlRequest(
+//            "oss", "test-xzy/myS3File.mp4");
+//        //这里我们上传文件的时候bucketName就需要替换为oss，bucketName拼到文件名的前面
+//        s3.putObject(new PutObjectRequest("oss","test-xzy/myS3File.mp4",file).withGeneralProgressListener(new ProgressListener(){
+//            int readedbyte = 0;
+//            @Override
+//            public void progressChanged(ProgressEvent progressEvent) {
+//                readedbyte += progressEvent.getBytesTransferred();
+//                System.out.println("=========progress=================" + (readedbyte / (float)file.length()) + "============URL=============");
+//            }
+//        }));
+//        URL url = s3.generatePresignedUrl(urlRequest);
+//        System.out.println("=========URL=================" + url.toString() + "============URL=============");
+
+    }
+
+
 
     /**
      * 获取全部bucket

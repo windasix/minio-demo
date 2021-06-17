@@ -7,11 +7,22 @@ spring:
   application:
     name: minio-demo
 
+  datasource:
+    url: jdbc:mysql://localhost:3306/mall?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: root
+    password: root
+  servlet:
+    multipart:
+      enabled: true #开启文件上传
+      max-file-size: 1000000MB #限制文件上传大小为10M
+      max-request-size: 1000000MB
+      file-size-threshold: 1000000MB
+
 #请把下面的配置换成自己的服务器
 minio:
-  endpoint: http://129.28.158.207:9000
-  accessKey: admin
-  secretKey: 12345678
+  endpoint: http://192.168.31.155:9000
+  accessKey: minioadmin
+  secretKey: minioadmin
   filHost: http://file.songshijun.top
 
 logging:
