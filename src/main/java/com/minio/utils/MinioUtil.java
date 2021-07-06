@@ -12,6 +12,7 @@ import com.minio.config.MinioProp;
 import com.minio.dto.response.FileUploadResponse;
 import io.minio.*;
 import io.minio.errors.*;
+import io.minio.http.Method;
 import io.minio.messages.Bucket;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,10 +26,8 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
-import java.util.Random;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Component
@@ -265,4 +264,80 @@ public class MinioUtil {
     public void removeObject(String bucketName, String objectName) throws Exception {
         client.removeObject(RemoveObjectArgs.builder().bucket(bucketName).object(objectName).build());
     }
+
+    /**
+     * 获得临时上次地址
+     * @param bucketName
+     * @param objectName
+     * @throws Exception
+     */
+    public String getPresignedUrl(String bucketName, String objectName, String fileType) throws Exception {
+        Map<String, String> reqParams = new HashMap<String, String>();
+        reqParams.put("response-content-type", "application/json");
+        String time = Java8DateUtils.formatter(new Date(), Java8DateUtils.DATE_FORMAT);
+        String uuid = UUID.randomUUID().toString();
+        String url =
+            client.getPresignedObjectUrl(
+                GetPresignedObjectUrlArgs.builder()
+                    .method(Method.PUT)
+                    .bucket(bucketName)
+                    .object(time + "/" + uuid + fileType)
+                    .expiry(1, TimeUnit.DAYS)
+                    .extraQueryParams(reqParams)
+                    .build());
+        return url;
+    }
+
+
+
+//    public void getTempCertificate() {
+//        AmazonS3 s3 = new AmazonS3Client();
+//        AwsSts awsSts=new AwsSts();
+//        try {
+//            BasicAWSCredentials awsCreds=new BasicAWSCredentials(AwsStsConfig.JAVA_ACCESS_KEY,AwsStsConfig.JAVA_SECRET_KEY);
+//            AWSSecurityTokenService stsClient = AWSSecurityTokenServiceClientBuilder
+//                .standard()
+//                .withCredentials(new AWSStaticCredentialsProvider(awsCreds))
+//                .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration("sts.us-east-2.amazonaws.com","us-east-2"))
+//                .build();
+//            String policy = String.format("{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\",\"s3:PutObject\",\"s3:DeleteObject\"],\"Resource\":[\"arn:aws:s3:::test2021/user/%s\",\"arn:aws:s3:::test2021/user/%s/*\"]}]}",memberUid,memberUid);
+//            AssumeRoleRequest assumeRoleRequest = new AssumeRoleRequest();
+//            assumeRoleRequest.setRoleArn("arn:aws:iam::0759376:role/testClientRole");
+//            assumeRoleRequest.setPolicy(policy);
+//
+//            assumeRoleRequest.setRoleSessionName(memberUid);
+//            assumeRoleRequest.setDurationSeconds(3600);
+//
+//            AssumeRoleResult assumeRoleResult = stsClient.assumeRole(assumeRoleRequest);
+//            if (assumeRoleResult != null && assumeRoleResult.getCredentials() != null) {
+//
+//                log.info("AccessKeyId = " + assumeRoleResult.getCredentials().getAccessKeyId());
+//                log.info("SecretAccessKey = " + assumeRoleResult.getCredentials().getSecretAccessKey());
+//                log.info("SessionToken = " + assumeRoleResult.getCredentials().getSessionToken());
+//                log.info("Expiration = " + assumeRoleResult.getCredentials().getExpiration());
+//                awsSts.setStatusCode("200");
+//                awsSts.setBucketName(AwsStsConfig.JAVA_BUCKET);
+//                awsSts.setRegion(AwsStsConfig.JAVA_REGION);
+//                awsSts.setAccessKeyId(assumeRoleResult.getCredentials().getAccessKeyId());
+//                awsSts.setSecretAccessKey(assumeRoleResult.getCredentials().getSecretAccessKey());
+//                awsSts.setSessionToken(assumeRoleResult.getCredentials().getSessionToken());
+//                awsSts.setExpiration(assumeRoleResult.getCredentials().getExpiration());
+//
+//
+//            }
+//            else {
+//                awsSts.setStatusCode("500");
+//                logger.error("亚马逊AssumeRoleResult 返回对象为空");
+//            }
+//        }
+//        catch (Exception ex){
+//            awsSts.setStatusCode("500");
+//            logger.error(ex.getMessage());
+//        }
+//        finally {
+//            return awsSts;
+//        }
+//    }
+
+
 }

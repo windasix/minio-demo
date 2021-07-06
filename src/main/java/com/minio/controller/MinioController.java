@@ -137,10 +137,19 @@ public class MinioController {
 
     @PostMapping("/test")
     public void getTest() throws Exception {
-
         minioUtil.getStatus();
-
     }
+
+    /**
+     * 获得临时凭证
+     */
+    @GetMapping("/getPresignedUrl")
+    public String getPresignedUrl(@RequestParam(name="objectName", required = true) String objectName,
+                                     @RequestParam(required = true, defaultValue = "salt") String bucketName,
+                                     @RequestParam(required = true) String fileType) throws Exception {
+        return minioUtil.getPresignedUrl(bucketName, objectName, fileType);
+    }
+
 
 
 

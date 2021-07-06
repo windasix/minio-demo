@@ -97,6 +97,13 @@
             <version>1.12.1</version>
         </dependency>
 
+        <!--AWS STS-->
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-sts</artifactId>
+            <version>1.11.277</version>
+        </dependency>
+
     </dependencies>
 
     <build>
